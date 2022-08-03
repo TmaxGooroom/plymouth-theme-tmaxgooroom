@@ -1,0 +1,337 @@
+#-----------------------------Text-image functions----------------------------
+
+# Set the text colour in (rgb / 256)
+text_colour.red = 1.0;
+text_colour.green = 1.0;
+text_colour.blue = 1.0;
+
+# Orange - #ff4012 - RGB 255 64 18
+debugsprite = Sprite();
+
+# General purpose function to create text
+fun WriteText (text, colour) {
+    image = Image.Text (text, colour.red, colour.green, colour.blue);
+    return image;
+}
+
+fun ImageFromText (text) {
+    image = WriteText (text, text_colour);
+    return image;
+}
+
+fun Debug(text) {
+    debugsprite.SetImage(ImageFromText (text));
+}
+
+#----------------------------- Screen/window setup ---------------------------
+display = 0;
+for(display = 0; Window.GetWidth(display); display++){
+  screen_width[display] = Window.GetWidth(display);
+  screen_height[display] = Window.GetHeight(display);
+}
+
+screen_x[0] = Window.GetX(0);
+screen_y[0] = Window.GetY(0);
+
+for(i = 0; i < display - 1; i++){
+  screen_x[i + 1] = screen_x[i] + screen_width[i];
+  screen_y[i + 1] = screen_y[i];
+}
+
+for(i = 0; i < display; i++){
+  center_x2[i] = screen_x[i] + (screen_width[i] / 2);
+  center_y2[i] = screen_y[i] + (screen_height[i] / 2);
+  Window.SetX(i, screen_x[i]);
+  Window.SetY(i, screen_y[i]);
+}
+
+fde_init = "false";
+status = "normal";
+spaces = 0;
+text_pos_x=0;
+text_pos_y=0;
+message=0;
+
+idx = 0; // idx : 스플래시 이미지의 FPS를 정해줄 전역 변수
+
+#center_x = Window.GetX() + Window.GetWidth() / 2;
+#center_y = Window.GetY() + Window.GetHeight() / 2;
+
+if (global.status == "normal") {
+  blank = Image("blank.png");
+
+  for(i = 0; i < 20; i++){
+    logo_mv[i] = Image("logo_mov/booting_" + (i+1) + ".png");
+  }
+
+  for(i = 0 ; i < 19; i++){
+    shutdown_mv[i] = Image("shutdown_mov/shutdown_" + (i+1) + ".png");
+  }
+
+  for(i = 0; i < 31; i++){
+    reboot_mv[i] = Image("reboot_mov/restart_" + (i+1) + ".png");
+  }
+
+  for(i = 0; i < 101; i++){
+    update_mv[i] = Image("update/png/" + Math.Int(i/5) * 5 + ".png");
+  }
+
+  tlogo.sprite = Sprite(blank);
+  tlogo_pos_x = center_x2[0] - logo_mv[0].GetWidth() / 2;
+  tlogo_pos_y = center_y2[0] - logo_mv[0].GetHeight() / 2;
+  tlogo.sprite.SetPosition(tlogo_pos_x, tlogo_pos_y);
+
+  shutdown_sprite = Sprite(blank);
+  shutdown_pos_x = center_x2[0] - shutdown_mv[0].GetWidth() / 2;
+  shutdown_pos_y = center_y2[0] - shutdown_mv[0].GetHeight() / 2;
+  shutdown_sprite.SetPosition(shutdown_pos_x, shutdown_pos_y);
+
+  reboot_sprite = Sprite(blank);
+
+  update_sprite = Sprite(blank);
+  update_pos_x = center_x2[0] - update_mv[0].GetWidth() / 2;
+  update_pos_y = center_y2[0] - update_mv[0].GetHeight() / 2;
+  update_sprite.SetPosition(update_pos_x, update_pos_y);
+
+  text_sprite = Sprite(blank);
+
+}
+
+fun StringString(string, substring){
+    start = 0;
+    while (String(string).CharAt (start)) {
+        walk = 0;
+        while (String(substring).CharAt (walk) == String(string).CharAt (start + walk) ) {
+            walk++;
+            if (!String(substring).CharAt (walk)) return start;
+        }
+        start++;
+    }
+
+    return NULL;
+}
+
+inc = 0.27;
+wait = 0;
+fun refreshHandler() {
+  if(Plymouth.GetMode() == "boot" && global.status != "password") {
+    global.wait++;
+    if (global.wait > 250){
+      dialog.logo.sprite = Sprite(blank);
+      dialog.background.sprite = Sprite(blank);
+      dialog.success.sprite = Sprite(blank);
+      dialog.success_text.sprite = Sprite(blank);
+
+      tlogo.sprite.SetImage(logo_mv[Math.Int(idx) % 21]);
+
+      if( Math.Int(idx) % 21 == 20 ){
+        inc = 0.02;
+      } else if( Math.Int(idx) % 21 == 0){
+        inc = 0.27;
+      }
+    }
+
+    idx += inc;
+  } else {
+    global.wait = 0;
+    tlogo.sprite.SetImage(blank);
+  }
+}
+
+fun refreshRebootHandler() {
+    if(global.status == "reboot"){
+      reboot_sprite.SetPosition(global.text_pos_x + global.message.GetWidth() + 50, global.text_pos_y);
+      reboot_sprite.SetImage(reboot_mv[Math.Int(idx) % 31]);
+    }
+  idx += 0.3;
+}
+
+fun refreshPoweroffHandler() {
+  shutdown_sprite.SetImage(shutdown_mv[Math.Int(idx) % 19]);
+  idx += 0.35;
+}
+
+fun statusHandler(msg) {
+  if(msg == "plymouth-reboot.service") {
+    global.status = "reboot";
+    Plymouth.SetRefreshFunction (refreshRebootHandler);
+  } else if(msg == "plymouth-poweroff.service") {
+    Plymouth.SetRefreshFunction (refreshPoweroffHandler);
+  } else {
+    // nothing to do
+  }
+}
+
+fun message_callback(msg) {
+  if(global.status == "reboot"){
+    global.message = Image.Text (msg, 255, 255, 255, 1, "DejaVu");
+    global.message = global.message.Scale(global.message.GetWidth() * 1.5, global.message.GetHeight() * 1.5);
+    global.text_pos_x = center_x2[0] - global.message.GetWidth() / 2;
+    global.text_pos_y = center_y2[0] - global.message.GetHeight() / 2;
+    text_sprite.SetPosition(global.text_pos_x, global.text_pos_y);
+    text_sprite.SetImage(global.message);
+  } else if (global.status == "update") {
+    global.message = Image.Text (msg, 255, 255, 255, 1, "DejaVu");
+    global.message = global.message.Scale(global.message.GetWidth() * 1.5, global.message.GetHeight() * 1.5);
+    global.text_pos_x = center_x2[0] - global.message.GetWidth() / 2;
+    global.text_pos_y = center_y2[0] + 150 - global.message.GetHeight() / 2;
+    text_sprite.SetPosition(global.text_pos_x, global.text_pos_y);
+    text_sprite.SetImage(global.message);
+  } else if (global.status == "password") {
+      local.substring = "successfully";
+      local.return = StringString(msg, local.substring);
+      if (return != NULL){
+        dialog.lock.sprite = Sprite(blank);
+        dialog.lock_text.sprite = Sprite(blank);
+        dialog.field.sprite = Sprite(blank);
+        for (index = 0; dialog.bullet[index] || index < global.spaces; index++){
+          dialog.bullet[index].sprite = Sprite(blank);
+        }
+        dialog.success.sprite = Sprite(dialog.success_image);
+        dialog.success_pos_x = center_x2[0] - dialog.success_image.GetWidth() / 2;
+        dialog.success_pos_y = dialog.field_pos_y - 100;
+        dialog.success.sprite.SetPosition(dialog.success_pos_x, dialog.success_pos_y);
+
+        dialog.success_text.sprite = Sprite(dialog.success_text_image);
+        dialog.success_text_pos_x = center_x2[0] - dialog.success_text_image.GetWidth() / 2;
+        dialog.success_text_pos_y = dialog.field_pos_y - 50;
+        dialog.success_text.sprite.SetPosition(dialog.success_text_pos_x, dialog.success_text_pos_y);
+        global.status = "normal";
+      } else {
+        dialog.lock.sprite = Sprite(blank);
+        dialog.lock_text.sprite = Sprite(blank);
+
+        dialog.error.sprite = Sprite(dialog.error_image);
+        dialog.error_pos_x = center_x2[0] - dialog.error_image.GetWidth() / 2;
+        dialog.error_pos_y = dialog.field_pos_y - 100;
+        dialog.error.sprite.SetPosition(dialog.error_pos_x, dialog.error_pos_y);
+
+        dialog.error_text.sprite = Sprite(dialog.error_text_image);
+        dialog.error_text_pos_x = center_x2[0] - dialog.error_text_image.GetWidth() / 2;
+        dialog.error_text_pos_y = dialog.field_pos_y - 50;
+        dialog.error_text.sprite.SetPosition(dialog.error_text_pos_x, dialog.error_text_pos_y);
+        global.status = "password";
+      }
+  }
+}
+
+fun progress_callback (progress) {
+  global.status = "update";
+  Window.SetBackgroundTopColor (0.3, 0.3, 1);
+  Window.SetBackgroundBottomColor (0.3, 0.3, 1);
+  update_sprite.SetImage(update_mv[progress]);
+}
+
+fun dialog_setup(prompt){
+  global.dialog.bullet_image = Image("password-resource/password_dot.png");
+  global.dialog.field_image = Image("password-resource/password_field.png");
+  global.dialog.background_image = Image("password-resource/password_background.png");
+  global.dialog.logo_image= Image("password-resource/b2b_logo.png");
+
+  global.dialog.lock_image= Image("password-resource/lock.png");
+  global.dialog.lock_text_image= Image("password-resource/lock_text.png");
+
+  global.dialog.error_image= Image("password-resource/error.png");
+  global.dialog.error_text_image= Image("password-resource/error_text.png");
+
+  global.dialog.success_image= Image("password-resource/success.png");
+  global.dialog.success_text_image= Image("password-resource/success_text.png");
+
+  global.dialog.prompt_image = Image.Text ("prompt", 255, 255, 255, 1, "DejaVu");
+  global.dialog.prompt_image = global.dialog.prompt_image.Scale(global.dialog.prompt_image.GetWidth() * 1.5, global.dialog.prompt_image.GetHeight() * 1.5);
+
+  window_max.width = Window.GetWidth(0);
+  window_max.height = Window.GetHeight(0);
+  screen_ratio = window_max.width / window_max.height;
+  bg_image_ratio = dialog.background_image.GetWidth() / dialog.background_image.GetHeight();
+  if (screen_ratio > bg_image_ratio)
+    bg_scale_factor = window_max.width / dialog.background_image.GetWidth();
+  else
+    bg_scale_factor = window_max.height / dialog.background_image.GetHeight();
+  
+  global.dialog.scaled_background_image = dialog.background_image.Scale(dialog.background_image.GetWidth() * bg_scale_factor, dialog.background_image.GetHeight() * bg_scale_factor);
+}
+
+fun display_password_callback (prompt, bullets){
+  global.status = "password";
+
+  if (global.fde_init == "false"){
+    dialog_setup(prompt);
+  
+    dialog.background.sprite = Sprite(dialog.scaled_background_image);
+    dialog.background_pos_x = center_x2[0] - dialog.scaled_background_image.GetWidth() / 2;
+    dialog.background_pos_y = center_y2[0] - dialog.scaled_background_image.GetHeight() / 2;
+    dialog.background.sprite.SetPosition(dialog.background_pos_x, dialog.background_pos_y);
+
+    dialog.logo.sprite = Sprite(dialog.logo_image);
+    dialog.logo_pos_x = center_x2[0] - dialog.logo_image.GetWidth() / 2;
+    dialog.logo_pos_y = center_y2[0] - center_y2[0] / 3 - dialog.logo_image.GetHeight() / 2;
+    dialog.logo.sprite.SetPosition(dialog.logo_pos_x, dialog.logo_pos_y);
+
+    dialog.field.sprite = Sprite(dialog.field_image);
+    dialog.field_pos_x = center_x2[0] - dialog.field_image.GetWidth() / 2;
+    dialog.field_pos_y = center_y2[0] + center_y2[0] / 3 - dialog.field_image.GetHeight() / 2;
+    dialog.field.sprite.SetPosition(dialog.field_pos_x, dialog.field_pos_y);
+
+    global.fde_init = "true";
+  }
+
+  dialog.lock.sprite = Sprite(dialog.lock_image);
+  dialog.lock_pos_x = center_x2[0] - dialog.lock_image.GetWidth() / 2;
+  dialog.lock_pos_y = dialog.field_pos_y - 100;
+  dialog.lock.sprite.SetPosition(dialog.lock_pos_x, dialog.lock_pos_y);
+
+  dialog.lock_text.sprite = Sprite(dialog.lock_text_image);
+  dialog.lock_text_pos_x = center_x2[0] - dialog.lock_text_image.GetWidth() / 2;
+  dialog.lock_text_pos_y = dialog.field_pos_y - 50;
+  dialog.lock_text.sprite.SetPosition(dialog.lock_text_pos_x, dialog.lock_text_pos_y);
+
+  dialog.error.sprite = Sprite(blank);
+  dialog.error_text.sprite = Sprite(blank);
+
+  dot_interval = 8;
+  bullet_width = dialog.bullet_image.GetWidth() + dot_interval;
+  bullet_y = dialog.field_pos_y + dialog.field_image.GetHeight() / 2 - dialog.bullet_image.GetHeight() / 2;
+  margin = bullet_width;
+  global.spaces = Math.Int( (dialog.field_image.GetWidth () - (margin * 2)) / (bullet_width / 2 ) );
+  bullets_area.width = margin + global.spaces * (bullet_width / 2);
+  bullets_area.x = Window.GetX (0) + Window.GetWidth (0) / 2 - bullets_area.width / 2;
+
+  if (bullets > global.spaces)
+      bullets = global.spaces;
+
+  for (index = 0; dialog.bullet[index] || index < bullets; index++){
+    dialog.bullet[index].sprite = Sprite(dialog.bullet_image);
+    dialog.bullet[index].x = bullets_area.x + index * bullet_width / 2;
+    dialog.bullet[index].y = bullet_y;
+    dialog.bullet[index].sprite.SetPosition(dialog.bullet[index].x, dialog.bullet[index].y);
+    dialog.bullet[index].sprite.SetOpacity(0);
+
+    if (index < bullets){
+      dialog.bullet[index].sprite.SetOpacity(1);
+    }
+  }
+}
+
+fun question_callback (prompt, strings){
+  global.status = "password";
+  global.message = Image.Text (strings, 255, 255, 255, 1, "DejaVu");
+  global.message = global.message.Scale(global.message.GetWidth() * 1.5, global.message.GetHeight() * 1.5);
+  global.text_pos_x = center_x2[0] - global.message.GetWidth() / 2;
+  global.text_pos_y = center_y2[0] - global.message.GetHeight() / 2;
+  text_sprite.SetPosition(global.text_pos_x, global.text_pos_y);
+  text_sprite.SetImage(global.message);
+}
+
+#fun display_normal_callback ()
+#{
+#  global.status = "normal";
+#}
+
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetRefreshFunction (refreshHandler);
+Plymouth.SetUpdateStatusFunction (statusHandler);
+Plymouth.SetMessageFunction (message_callback);
+Plymouth.SetSystemUpdateFunction(progress_callback);
+Plymouth.SetDisplayQuestionFunction(question_callback);
+#Plymouth.SetDisplayNormalFunction (display_normal_callback);

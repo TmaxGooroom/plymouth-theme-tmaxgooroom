@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=TmaxGooroom
+Description=TmaxGooroom Splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/tmaxgooroom
+ScriptFile=/usr/share/plymouth/themes/tmaxgooroom/tmaxgooroom.script

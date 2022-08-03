@@ -1,0 +1,13 @@
+Source: plymouth-theme-tmaxgooroom
+Section: misc
+Priority: optional
+Maintainer: os1_2 <os1_2@tmax.co.kr>
+Uploaders: os1_2 <os1_2@tmax.co.kr>
+Build-Depends: debhelper (>=10)
+Standards-Version: 4.5.1
+
+Package: plymouth-theme-tmaxgooroom
+Architecture: amd64
+Depends: libc6 (>= 2.17), libplymouth5 (>= 0.9.5)
+Description: TmaxGooroom Splash
+  This is TmaxGooroom Splash
